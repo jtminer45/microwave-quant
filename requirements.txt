@@ -2,6 +2,8 @@ streamlit
 plotly
 pandas
 numpy
-yfinance
-matplotlib
-scikit-learn
+scipy
+requests
+beautifulsoup4
+lxml
+reportlab
