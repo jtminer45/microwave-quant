@@ -104,3 +104,29 @@ def load_historical(ticker):
         df['Price'].astype(str).str.replace(',', ''), errors='coerce'
     )
     return df.dropna(subset=['Price'])
+
+@st.cache_data(ttl=1800)  # cache 30 minutes
+def get_market_news():
+    """Fetch Nigerian market news from RSS feeds. Returns [] on any failure."""
+    try:
+        import feedparser
+        feeds = [
+            ("Nairametrics", "https://nairametrics.com/feed/"),
+            ("BusinessDay", "https://businessday.ng/feed/"),
+        ]
+        articles = []
+        for source, url in feeds:
+            try:
+                parsed = feedparser.parse(url)
+                for entry in parsed.entries[:4]:
+                    articles.append({
+                        "source": source,
+                        "title": entry.get("title", ""),
+                        "link": entry.get("link", ""),
+                        "published": entry.get("published", "")[:16],
+                    })
+            except Exception:
+                continue
+        return articles
+    except Exception:
+        return []

@@ -12,7 +12,7 @@ from scipy.stats import norm
 
 sys.path.append('src')
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
-from data_fetcher import get_ngx_prices, get_stock_volatility, load_historical
+from data_fetcher import get_ngx_prices, get_stock_volatility, load_historical, get_market_news
 
 # ── Page Config ──
 st.set_page_config(
@@ -143,6 +143,18 @@ if page == "🏠 Market Overview":
         st.plotly_chart(fig, use_container_width=True)
 
         st.caption(f"Last updated: {df['time'].iloc[0]} WAT | Source: Mansa Markets")
+        # ── Market News ──
+        news = get_market_news()
+        if news:
+            st.markdown("---")
+            st.subheader("📰 Nigerian Market News")
+            cols = st.columns(2)
+            for i, article in enumerate(news[:8]):
+                with cols[i % 2]:
+                    st.markdown(
+                        f"**[{article['title']}]({article['link']})**  \n"
+                        f"*{article['source']} — {article['published']}*"
+                    )
 
     else:
         st.error("Could not fetch NGX data. Please check your internet connection and refresh.")
