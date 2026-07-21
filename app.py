@@ -128,7 +128,7 @@ if page == "🏠 Market Overview":
 
         display_df = df[['ticker', 'company', 'price', 'change_pct', 'market_cap']].copy()
         display_df.columns = ['Ticker', 'Company', 'Price (₦)', 'Change %', 'Market Cap']
-        styled = display_df.style.applymap(color_change, subset=['Change %'])
+        styled = display_df.style.map(color_change, subset=['Change %'])
         st.dataframe(styled, use_container_width=True, hide_index=True)
 
         st.markdown("---")
