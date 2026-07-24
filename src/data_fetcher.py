@@ -45,8 +45,10 @@ def get_ngx_prices():
         df['change_pct'] = df['change_pct'].astype(str).str.replace('%', '').str.strip()
         df['change_pct'] = pd.to_numeric(df['change_pct'], errors='coerce')
 
-        df['company'] = df['ticker'].str.extract(r'^(.*?)([A-Z]{3,})$')[0]
-        df['ticker'] = df['ticker'].str.extract(r'([A-Z]{3,})$')
+        # NGX tickers are 2-10 uppercase letters (e.g. "NB" for Nigerian
+        # Breweries) — {3,} used to miss any 2-letter ticker entirely.
+        df['company'] = df['ticker'].str.extract(r'^(.*?)([A-Z]{2,})$')[0]
+        df['ticker'] = df['ticker'].str.extract(r'([A-Z]{2,})$')
 
         df['date'] = datetime.now().strftime('%Y-%m-%d')
         df['time'] = datetime.now().strftime('%H:%M:%S')

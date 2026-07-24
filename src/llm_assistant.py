@@ -5,7 +5,7 @@ import streamlit as st
 MODEL = "claude-opus-4-8"
 
 SYSTEM_PROMPT = (
-    "You are the AI analyst embedded in Microwave Quant, a Nigerian Exchange (NGX) "
+    "You are the AI analyst embedded in Longon Capital, a Nigerian Exchange (NGX) "
     "analytics platform. Ground every statement strictly in the data given to you in "
     "the prompt — never invent tickers, prices, or figures that weren't provided. "
     "Write in plain, direct prose (no headers, no bullet lists) and keep responses "

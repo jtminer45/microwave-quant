@@ -18,70 +18,143 @@ import auth
 
 # ── Page Config ──
 st.set_page_config(
-    page_title="Microwave Quant",
+    page_title="Longon Capital",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# ── Global Styling ──
+st.markdown("""
+<style>
+    .block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1200px; }
+
+    /* Card-style bordered containers */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 14px;
+    }
+
+    /* Buttons: bigger, bolder, easier to tap */
+    .stButton > button, .stFormSubmitButton > button {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5rem 1.25rem;
+        transition: transform 0.05s ease-in-out;
+    }
+    .stButton > button:hover, .stFormSubmitButton > button:hover {
+        transform: scale(1.01);
+    }
+
+    /* Metric cards: give numbers visual weight and separation */
+    div[data-testid="stMetric"] {
+        background-color: #F0F4F8;
+        border: 1px solid #E1E8F0;
+        border-radius: 10px;
+        padding: 1rem 1rem 0.6rem 1rem;
+    }
+
+    /* Tabs: look more like a segmented control */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.05rem;
+        font-weight: 600;
+        padding: 0.5rem 1.25rem;
+    }
+
+    /* Sidebar nav label */
+    section[data-testid="stSidebar"] .stSelectbox label {
+        font-weight: 700;
+        font-size: 1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+def ai_setup_notice():
+    """Friendly, consistent call-to-action wherever an AI feature is locked."""
+    with st.expander("🔒 AI feature locked — click to enable it (one-time setup)"):
+        st.markdown(
+            "1. Grab a free API key at [console.anthropic.com](https://console.anthropic.com)\n"
+            "2. Add it to `.streamlit/secrets.toml` in this project:\n"
+            "   ```toml\n   ANTHROPIC_API_KEY = \"sk-ant-...\"\n   ```\n"
+            "   (or set it as an environment variable before starting the app)\n"
+            "3. Restart the app — this message will disappear once it's detected."
+        )
+
 
 # ── Authentication Gate ──
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.markdown("<h1 style='text-align:center;'>📈 Microwave Quant</h1>", unsafe_allow_html=True)
+    st.write("")
+    st.markdown("<h1 style='text-align:center; margin-bottom:0;'>📈 Longon Capital</h1>", unsafe_allow_html=True)
     st.markdown(
-        "<p style='text-align:center; color:gray;'>Nigeria's First Quantitative Analytics Platform</p>",
+        "<p style='text-align:center; color:gray; font-size:1.1rem;'>"
+        "Nigeria's First Quantitative Analytics Platform</p>",
         unsafe_allow_html=True,
     )
     st.write("")
 
     _, center_col, _ = st.columns([1, 1.3, 1])
     with center_col:
-        login_tab, signup_tab = st.tabs(["🔑 Log In", "✨ Create Account"])
+        with st.container(border=True):
+            st.markdown(
+                "<p style='text-align:center; color:gray;'>"
+                "Track NGX prices, build a portfolio, and get AI-powered insights — "
+                "log in or create a free account to get started.</p>",
+                unsafe_allow_html=True,
+            )
+            login_tab, signup_tab = st.tabs(["🔑 Log In", "✨ Create Account"])
 
-        with login_tab:
-            with st.form("login_form"):
-                st.markdown("**Log in to your account**")
-                login_username = st.text_input("Username", key="login_username")
-                login_password = st.text_input("Password", type="password", key="login_password")
-                if st.form_submit_button("Log In", use_container_width=True):
-                    ok, message = auth.verify_user(login_username, login_password)
-                    if ok:
-                        st.session_state.authenticated = True
-                        st.session_state.username = login_username
-                        saved_portfolio = auth.load_portfolio(login_username)
-                        if saved_portfolio:
-                            st.session_state.portfolio_stocks = saved_portfolio
-                        st.rerun()
-                    else:
-                        st.error(message)
-
-        with signup_tab:
-            with st.form("signup_form"):
-                st.markdown("**Create a free account**")
-                st.caption("Pick a username and password — no email required.")
-                new_username = st.text_input("Choose a username", key="signup_username",
-                                              help="3-20 characters — letters, numbers, and underscores only.")
-                new_password = st.text_input("Choose a password", type="password", key="signup_password",
-                                              help="At least 6 characters.")
-                confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm")
-                if st.form_submit_button("Create Account", use_container_width=True):
-                    if new_password != confirm_password:
-                        st.error("Those passwords don't match — please try again.")
-                    else:
-                        ok, message = auth.create_user(new_username, new_password)
-                        if ok:
-                            st.session_state.authenticated = True
-                            st.session_state.username = new_username
-                            st.rerun()
+            with login_tab:
+                with st.form("login_form"):
+                    st.markdown("**Welcome back**")
+                    login_username = st.text_input("Username", key="login_username", placeholder="e.g. johnny")
+                    login_password = st.text_input("Password", type="password", key="login_password",
+                                                     placeholder="Your password")
+                    if st.form_submit_button("Log In", use_container_width=True, type="primary"):
+                        if not login_username or not login_password:
+                            st.error("Please enter both a username and password.")
                         else:
-                            st.error(message)
+                            ok, message = auth.verify_user(login_username, login_password)
+                            if ok:
+                                st.session_state.authenticated = True
+                                st.session_state.username = login_username
+                                saved_portfolio = auth.load_portfolio(login_username)
+                                if saved_portfolio:
+                                    st.session_state.portfolio_stocks = saved_portfolio
+                                st.rerun()
+                            else:
+                                st.error(message)
+
+            with signup_tab:
+                with st.form("signup_form"):
+                    st.markdown("**Create your free account**")
+                    st.caption("Just a username and password — no email required.")
+                    new_username = st.text_input("Choose a username", key="signup_username",
+                                                  placeholder="3-20 characters, letters/numbers/underscore",
+                                                  help="3-20 characters — letters, numbers, and underscores only.")
+                    new_password = st.text_input("Choose a password", type="password", key="signup_password",
+                                                  placeholder="At least 6 characters",
+                                                  help="At least 6 characters.")
+                    confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm",
+                                                       placeholder="Type it again")
+                    if st.form_submit_button("Create Account", use_container_width=True, type="primary"):
+                        if new_password != confirm_password:
+                            st.error("Those passwords don't match — please try again.")
+                        else:
+                            ok, message = auth.create_user(new_username, new_password)
+                            if ok:
+                                st.session_state.authenticated = True
+                                st.session_state.username = new_username
+                                st.rerun()
+                            else:
+                                st.error(message)
 
     st.stop()
 
 # ── Sidebar ──
-st.sidebar.title("📈 Microwave Quant")
+st.sidebar.title("📈 Longon Capital")
 st.sidebar.markdown("*Nigeria's First Quantitative Analytics Platform*")
 st.sidebar.markdown(f"👤 Logged in as **{st.session_state.username}**")
 if st.sidebar.button("🚪 Log Out", use_container_width=True):
@@ -115,7 +188,7 @@ Not investment advice. Past performance does not
 guarantee future results.
 """)
 st.sidebar.markdown("Built by **Jonathan Miner**")
-st.sidebar.markdown("© 2026 Microwave Quant")
+st.sidebar.markdown("© 2026 Longon Capital")
 
 # ── Helper Functions ──
 def black_scholes(s, k, t, r, sigma, option_type="call"):
@@ -147,6 +220,19 @@ if page == "🏠 Market Overview":
     st.caption("⚠️ Data delayed 20 minutes. Not investment advice.")
     st.title("🏠 NGX Market Overview")
     st.markdown("*Live Nigerian Exchange Market Data*")
+
+    with st.expander("👋 New here? Click for a quick guide"):
+        st.markdown("""
+        - **🏠 Market Overview** *(this page)* — today's NGX prices, gainers/losers, and news.
+        - **📊 Stock Analysis** — pick one stock to see its price history and stats.
+        - **💼 Portfolio Analytics** — build a portfolio; it's saved to your account automatically.
+        - **⚡ Derivatives Pricing** — option pricing calculator for any NGX stock.
+        - **⚠️ Risk Dashboard** — see how much a portfolio could lose in a bad scenario.
+        - **🔬 Strategy Backtester** — test a trading strategy against real history.
+        - **🤖 AI Assistant** — ask plain-English questions about any of the above.
+
+        Use the **Navigate** menu on the left to switch pages.
+        """)
 
     if st.button("🔄 Refresh Data"):
         st.cache_data.clear()
@@ -240,7 +326,7 @@ if page == "🏠 Market Overview":
                     commentary = llm_assistant.get_market_commentary("\n".join(lines))
                 st.info(commentary)
         else:
-            st.caption("Set the ANTHROPIC_API_KEY environment variable to enable AI market commentary.")
+            ai_setup_notice()
 
     else:
         st.error("Could not fetch NGX data. Please check your internet connection and refresh.")
@@ -494,7 +580,7 @@ elif page == "💼 Portfolio Analytics":
                     analysis = llm_assistant.get_portfolio_analysis("\n".join(lines))
                 st.info(analysis)
         else:
-            st.caption("Set the ANTHROPIC_API_KEY environment variable to enable AI portfolio analysis.")
+            ai_setup_notice()
 
         # ── PDF Report ──
         st.markdown("---")
@@ -524,7 +610,7 @@ elif page == "💼 Portfolio Analytics":
             body_style = ParagraphStyle('Body', parent=styles['Normal'],
                 fontSize=10, spaceAfter=8)
 
-            story.append(Paragraph("Microwave Quant", title_style))
+            story.append(Paragraph("Longon Capital", title_style))
             story.append(Paragraph("Nigerian Exchange Portfolio Analytics Report", subtitle_style))
             story.append(Paragraph(f"Client: {client_name}", body_style))
             story.append(Paragraph(f"Report Date: {datetime.now().strftime('%B %d, %Y')}", body_style))
@@ -602,10 +688,10 @@ elif page == "💼 Portfolio Analytics":
 
             story.append(Paragraph("Disclaimer", styles['Heading2']))
             story.append(Paragraph(
-                "This report is generated by Microwave Quant for analytical purposes only "
+                "This report is generated by Longon Capital for analytical purposes only "
                 "and does not constitute investment advice. Past performance does not guarantee "
                 "future results. All data is sourced from public market data and may be delayed. "
-                "(c) 2026 Microwave Quant — Built by Jonathan Miner",
+                "(c) 2026 Longon Capital — Built by Jonathan Miner",
                 body_style
             ))
 
@@ -615,7 +701,7 @@ elif page == "💼 Portfolio Analytics":
             st.download_button(
                 label="📥 Download PDF Report",
                 data=buffer,
-                file_name=f"microwave_quant_{client_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                file_name=f"longon_capital_{client_name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
                 mime="application/pdf"
             )
             st.success("✅ Report generated successfully!")
@@ -1102,7 +1188,8 @@ elif page == "🤖 AI Assistant":
     st.caption("⚠️ Analytical commentary only, not investment advice. Data delayed 20 minutes.")
 
     if not llm_assistant.is_available():
-        st.warning("Set the ANTHROPIC_API_KEY environment variable to enable the AI assistant.")
+        st.info("💬 Chat with an AI assistant about NGX stocks, your portfolio, and the market.")
+        ai_setup_notice()
     else:
         if "chat_messages" not in st.session_state:
             st.session_state.chat_messages = []
