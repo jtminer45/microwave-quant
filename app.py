@@ -13,6 +13,8 @@ from scipy.stats import norm
 sys.path.append('src')
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src'))
 from data_fetcher import get_ngx_prices, get_stock_volatility, load_historical, get_market_news
+import llm_assistant
+import auth
 
 # ── Page Config ──
 st.set_page_config(
@@ -22,9 +24,70 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ── Authentication Gate ──
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.markdown("<h1 style='text-align:center;'>📈 Microwave Quant</h1>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='text-align:center; color:gray;'>Nigeria's First Quantitative Analytics Platform</p>",
+        unsafe_allow_html=True,
+    )
+    st.write("")
+
+    _, center_col, _ = st.columns([1, 1.3, 1])
+    with center_col:
+        login_tab, signup_tab = st.tabs(["🔑 Log In", "✨ Create Account"])
+
+        with login_tab:
+            with st.form("login_form"):
+                st.markdown("**Log in to your account**")
+                login_username = st.text_input("Username", key="login_username")
+                login_password = st.text_input("Password", type="password", key="login_password")
+                if st.form_submit_button("Log In", use_container_width=True):
+                    ok, message = auth.verify_user(login_username, login_password)
+                    if ok:
+                        st.session_state.authenticated = True
+                        st.session_state.username = login_username
+                        saved_portfolio = auth.load_portfolio(login_username)
+                        if saved_portfolio:
+                            st.session_state.portfolio_stocks = saved_portfolio
+                        st.rerun()
+                    else:
+                        st.error(message)
+
+        with signup_tab:
+            with st.form("signup_form"):
+                st.markdown("**Create a free account**")
+                st.caption("Pick a username and password — no email required.")
+                new_username = st.text_input("Choose a username", key="signup_username",
+                                              help="3-20 characters — letters, numbers, and underscores only.")
+                new_password = st.text_input("Choose a password", type="password", key="signup_password",
+                                              help="At least 6 characters.")
+                confirm_password = st.text_input("Confirm password", type="password", key="signup_confirm")
+                if st.form_submit_button("Create Account", use_container_width=True):
+                    if new_password != confirm_password:
+                        st.error("Those passwords don't match — please try again.")
+                    else:
+                        ok, message = auth.create_user(new_username, new_password)
+                        if ok:
+                            st.session_state.authenticated = True
+                            st.session_state.username = new_username
+                            st.rerun()
+                        else:
+                            st.error(message)
+
+    st.stop()
+
 # ── Sidebar ──
 st.sidebar.title("📈 Microwave Quant")
 st.sidebar.markdown("*Nigeria's First Quantitative Analytics Platform*")
+st.sidebar.markdown(f"👤 Logged in as **{st.session_state.username}**")
+if st.sidebar.button("🚪 Log Out", use_container_width=True):
+    for key in ["authenticated", "username", "portfolio_stocks", "chat_messages"]:
+        st.session_state.pop(key, None)
+    st.rerun()
 st.sidebar.markdown("---")
 
 page = st.sidebar.selectbox(
@@ -34,7 +97,8 @@ page = st.sidebar.selectbox(
      "💼 Portfolio Analytics",
      "⚡ Derivatives Pricing",
      "⚠️ Risk Dashboard",
-     "🔬 Strategy Backtester"]
+     "🔬 Strategy Backtester",
+     "🤖 AI Assistant"]
 )
 
 st.sidebar.markdown("---")
@@ -155,6 +219,28 @@ if page == "🏠 Market Overview":
                         f"**[{article['title']}]({article['link']})**  \n"
                         f"*{article['source']} — {article['published']}*"
                     )
+
+        # ── AI Market Commentary ──
+        st.markdown("---")
+        st.subheader("🤖 AI Market Commentary")
+        if llm_assistant.is_available():
+            if st.button("🤖 Generate Commentary"):
+                top_gainers = df.nlargest(5, 'change_pct')[['ticker', 'change_pct']]
+                top_losers = df.nsmallest(5, 'change_pct')[['ticker', 'change_pct']]
+                lines = [f"Total stocks: {len(df)} | Gainers: {gainers} | Losers: {losers} | Flat: {flat}"]
+                lines.append("Top gainers: " + ", ".join(
+                    f"{r.ticker} ({r.change_pct:+.2f}%)" for r in top_gainers.itertuples()
+                ))
+                lines.append("Top losers: " + ", ".join(
+                    f"{r.ticker} ({r.change_pct:+.2f}%)" for r in top_losers.itertuples()
+                ))
+                if news:
+                    lines.append("Recent headlines: " + " | ".join(a['title'] for a in news[:5]))
+                with st.spinner("Analyzing market data..."):
+                    commentary = llm_assistant.get_market_commentary("\n".join(lines))
+                st.info(commentary)
+        else:
+            st.caption("Set the ANTHROPIC_API_KEY environment variable to enable AI market commentary.")
 
     else:
         st.error("Could not fetch NGX data. Please check your internet connection and refresh.")
@@ -291,6 +377,8 @@ elif page == "💼 Portfolio Analytics":
                 "Return %": round(return_pct, 2)
             })
 
+        auth.save_portfolio(st.session_state.username, st.session_state.portfolio_stocks)
+
         portfolio_df = pd.DataFrame(portfolio)
         total_cost = portfolio_df['Cost (₦)'].sum()
         total_value = portfolio_df['Value (₦)'].sum()
@@ -383,6 +471,30 @@ elif page == "💼 Portfolio Analytics":
             st.success(f"✅ Outperforming ASI by {total_return - asi_ytd:.2f} percentage points")
         else:
             st.warning(f"⚠️ Underperforming ASI by {asi_ytd - total_return:.2f} percentage points")
+
+        # ── AI Portfolio Analysis ──
+        st.markdown("---")
+        st.subheader("🤖 AI Portfolio Analysis")
+        if llm_assistant.is_available():
+            if st.button("🤖 Analyze My Portfolio"):
+                lines = [
+                    "Holdings: " + ", ".join(
+                        f"{p['Ticker']} ({p['Quantity']:,} sh, {p['Return %']:+.2f}%, "
+                        f"₦{p['Value (₦)']:,.2f} value)" for p in portfolio
+                    ),
+                    f"Total cost: ₦{total_cost:,.2f} | Current value: ₦{total_value:,.2f} | "
+                    f"P&L: ₦{total_pnl:,.2f} | Return: {total_return:.2f}%",
+                    f"ASI benchmark YTD return: {asi_ytd:.2f}% (alpha: {total_return - asi_ytd:+.2f}pp)",
+                    f"Monte Carlo (1yr, 1000 sims): expected ₦{final_values.mean():,.2f}, "
+                    f"95th pct ₦{np.percentile(final_values, 95):,.2f}, "
+                    f"5th pct ₦{np.percentile(final_values, 5):,.2f}, "
+                    f"probability of profit {(final_values > total_value).mean():.1%}",
+                ]
+                with st.spinner("Analyzing portfolio..."):
+                    analysis = llm_assistant.get_portfolio_analysis("\n".join(lines))
+                st.info(analysis)
+        else:
+            st.caption("Set the ANTHROPIC_API_KEY environment variable to enable AI portfolio analysis.")
 
         # ── PDF Report ──
         st.markdown("---")
@@ -980,3 +1092,53 @@ elif page == "🔬 Strategy Backtester":
 
     else:
         st.info(f"📊 Backtesting for {bt_ticker} requires historical data — available in the full version.")
+
+# ═══════════════════════════════════════════
+# 🤖 AI ASSISTANT
+# ═══════════════════════════════════════════
+elif page == "🤖 AI Assistant":
+    st.title("🤖 AI Assistant")
+    st.markdown("*Ask questions about NGX prices, your portfolio, or the market — grounded in this dashboard's live data*")
+    st.caption("⚠️ Analytical commentary only, not investment advice. Data delayed 20 minutes.")
+
+    if not llm_assistant.is_available():
+        st.warning("Set the ANTHROPIC_API_KEY environment variable to enable the AI assistant.")
+    else:
+        if "chat_messages" not in st.session_state:
+            st.session_state.chat_messages = []
+
+        with st.spinner("Loading market context..."):
+            chat_df = get_ngx_prices()
+
+        context_lines = []
+        if chat_df is not None:
+            context_lines.append("Current NGX snapshot (ticker: price, change%) — " + ", ".join(
+                f"{r.ticker}: ₦{r.price:,.2f} ({r.change_pct:+.2f}%)"
+                for r in chat_df.itertuples() if pd.notna(r.ticker) and pd.notna(r.price)
+            ))
+        if "portfolio_stocks" in st.session_state:
+            holdings = ", ".join(
+                f"{s['ticker']} x{s['qty']:,} @ ₦{s['buy_price']:,.2f}"
+                for s in st.session_state.portfolio_stocks
+            )
+            context_lines.append(f"User's portfolio (built on the Portfolio Analytics page): {holdings}")
+        context_summary = "\n".join(context_lines) if context_lines else "No market data currently loaded."
+
+        for msg in st.session_state.chat_messages:
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"])
+
+        if prompt := st.chat_input("Ask about NGX stocks, your portfolio, or the market..."):
+            st.session_state.chat_messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            with st.chat_message("assistant"):
+                api_messages = [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.chat_messages
+                ]
+                reply = st.write_stream(
+                    llm_assistant.stream_chat_reply(api_messages, context_summary)
+                )
+            st.session_state.chat_messages.append({"role": "assistant", "content": reply})

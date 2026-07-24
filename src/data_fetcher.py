@@ -6,11 +6,9 @@ from io import StringIO
 from datetime import datetime
 import streamlit as st
 
-# Historical data locations — tries repo folder first (works anywhere),
-# then local dev folder
+# Historical data bundled with the repo — works on any machine/host
 HISTORICAL_PATHS = [
     os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "historical"),
-    "/Users/minerjonathan/Desktop/ngx-predictor/data",
 ]
 
 # Fallback snapshot bundled with the app
